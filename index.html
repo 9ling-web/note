@@ -57,72 +57,82 @@
   </div>
 
   <script>
-    // 替換為您的 Apps Script 部署 URL
-    const API_URL = "https://script.google.com/macros/s/AKfycbyyJXi77aOtc623kVJzQRNShBx81gDc6njUUJ6n33cqoxHwaG2_jz65iaX_ecsmg3u1/exec";
+  // 您的 Apps Script 部署 URL
+  const API_URL = "https://script.google.com/macros/s/AKfycbxa9VdsMgwvT5BT7jcFnGSwaBEDU8zn_uQ_E4Y4-qsSlmJcLPfk05TYVwg-AEZrdir_/exec";
 
-    async function fetchNotes() {
-  const res = await fetch(API_URL);
-  const notes = await res.json();
-  const listEl = document.getElementById('noteList');
-  listEl.innerHTML = '';
+  async function fetchNotes() {
+    try {
+      const res = await fetch(API_URL);
+      const notes = await res.json();
+      const listEl = document.getElementById('noteList');
+      listEl.innerHTML = '';
 
-  // 1. 定義顏色的優先順序權重（數值越小越靠前）
-  const colorPriority = {
-    '#ffcdd2': 1, // 🔴 高優先 (紅色)
-    '#ffe0b2': 2, // 🟠 中優先 (橘色)
-    '#fff9c4': 3, // 🟡 普通 (黃色)
-    '#c8e6c9': 4  // 🟢 低優先 (綠色)
-  };
+      // 1. 定義顏色的優先順序權重（數值越小越靠前）
+      const colorPriority = {
+        '#ffcdd2': 1, // 🔴 高優先 (紅色)
+        '#ffe0b2': 2, // 🟠 中優先 (橘色)
+        '#fff9c4': 3, // 🟡 普通 (黃色)
+        '#c8e6c9': 4  // 🟢 低優先 (綠色)
+      };
 
-  // 2. 對取得的資料進行排序
-  notes.sort((a, b) => {
-    const priorityA = colorPriority[a.color] || 99; // 未知顏色預設排最後
-    const priorityB = colorPriority[b.color] || 99;
-    return priorityA - priorityB;
-  });
+      // 2. 對取得的資料進行排序
+      notes.sort((a, b) => {
+        const priorityA = colorPriority[a.color] || 99;
+        const priorityB = colorPriority[b.color] || 99;
+        return priorityA - priorityB;
+      });
 
-  // 3. 渲染排序後的便利貼
-  notes.forEach(note => {
-    const card = document.createElement('div');
-    card.className = 'note-card';
-    card.style.backgroundColor = note.color;
+      // 3. 渲染排序後的便利貼
+      notes.forEach(note => {
+        const card = document.createElement('div');
+        card.className = 'note-card';
+        card.style.backgroundColor = note.color || '#fff9c4';
+        
+        card.innerHTML = `
+          <input type="checkbox" onchange="completeNote('${note.id}', this)">
+          <span class="note-content">${note.content}</span>
+        `;
+        listEl.appendChild(card);
+      });
+    } catch (err) {
+      console.error("讀取失敗:", err);
+      document.getElementById('noteList').innerText = '載入失敗，請檢查 API URL 或網路連線。';
+    }
+  }
+
+  async function addNote() {
+    const input = document.getElementById('noteInput');
+    const prioritySelect = document.getElementById('prioritySelect');
+    const content = input.value.trim();
+    const color = prioritySelect.value;
+
+    if (!content) return;
+
+    input.value = '';
     
-    card.innerHTML = `
-      <input type="checkbox" onchange="completeNote('${note.id}', this)">
-      <span class="note-content">${note.content}</span>
-    `;
-    listEl.appendChild(card);
-  });
-}
+    // 送出新增請求 (包含 color 欄位)
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'add', content: content, color: color })
+    });
 
-    async function addNote() {
-      const input = document.getElementById('noteInput');
-      const content = input.value.trim();
-      if (!content) return;
-
-      input.value = '';
-      await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'add', content: content })
-      });
-      fetchNotes();
-    }
-
-    async function completeNote(id, checkbox) {
-      // 點擊勾選後，動畫淡出並從畫面移除
-      const card = checkbox.parentElement;
-      card.style.opacity = '0.3';
-      
-      await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'complete', id: id })
-      });
-      
-      card.remove();
-    }
-
-    // 初始載入便利貼
     fetchNotes();
-  </script>
+  }
+
+  async function completeNote(id, checkbox) {
+    const card = checkbox.parentElement;
+    card.style.opacity = '0.3';
+    
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'complete', id: id })
+    });
+    
+    card.remove();
+  }
+
+  // 初始載入便利貼
+  fetchNotes();
+</script>
 </body>
 </html>
