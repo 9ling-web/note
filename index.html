@@ -9,9 +9,11 @@
     
     /* 左側便利貼區域 */
     .left-panel { width: 60%; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; }
-    .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-    .input-group input { flex: 1; padding: 10px; font-size: 16px; }
-    .input-group button { padding: 10px 15px; cursor: pointer; }
+    .input-group { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .input-group input { flex: 1; min-width: 180px; padding: 10px; font-size: 16px; }
+    .input-group select { padding: 10px; font-size: 15px; cursor: pointer; }
+    .input-group button { padding: 10px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; }
+    .input-group button:hover { background: #0056b3; }
     
     .note-list { display: flex; flex-direction: column; gap: 12px; }
     .note-card { 
@@ -22,6 +24,7 @@
       display: flex; 
       align-items: center; 
       gap: 12px; 
+      transition: opacity 0.3s ease;
     }
     .note-card input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
     .note-content { flex: 1; font-size: 16px; word-break: break-all; }
@@ -33,7 +36,7 @@
 </head>
 <body>
 
- <!-- 左側：便利貼區 -->
+  <!-- 左側：便利貼區 -->
   <div class="left-panel">
     <h2>待辦便利貼</h2>
     <br>
@@ -52,87 +55,93 @@
 
   <!-- 右側：Google 日曆區 -->
   <div class="right-panel">
-    <!-- 請替換為您的 Google 日曆嵌入 iframe 連結 -->
-   <iframe src="https://calendar.google.com/calendar/embed?src=s1110195%40ttcs.edu.tw&ctz=Asia%2FTaipei" style="border: 0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+    <iframe src="https://calendar.google.com/calendar/embed?src=s1110195%40ttcs.edu.tw&ctz=Asia%2FTaipei" style="border: 0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
   </div>
 
   <script>
-  // 您的 Apps Script 部署 URL
-  const API_URL = "https://script.google.com/macros/s/AKfycbzvo2lxXMrr54KnGdVJt33LuuDgIH1Qei-NQVg2uKtQw2Fx5cij_eck1OvIhGcfJ3p9/exec";
+    // 您的 Apps Script 部署 URL
+    const API_URL = "https://script.google.com/macros/s/AKfycbwexVRh82fQ4v27VRursRVccLjGBypW0OWJVuu2VXLdOCnpKoUFw9Z1fz_9btS7mN5G/exec";
 
-  async function fetchNotes() {
-    try {
-      const res = await fetch(API_URL);
-      const notes = await res.json();
-      const listEl = document.getElementById('noteList');
-      listEl.innerHTML = '';
+    async function fetchNotes() {
+      try {
+        const res = await fetch(API_URL);
+        const notes = await res.json();
+        const listEl = document.getElementById('noteList');
+        listEl.innerHTML = '';
 
-      // 1. 定義顏色的優先順序權重（數值越小越靠前）
-      const colorPriority = {
-        '#ffcdd2': 1, // 🔴 高優先 (紅色)
-        '#ffe0b2': 2, // 🟠 中優先 (橘色)
-        '#fff9c4': 3, // 🟡 普通 (黃色)
-        '#c8e6c9': 4  // 🟢 低優先 (綠色)
-      };
+        if (notes.length === 0) {
+          listEl.innerText = '目前沒有待辦便利貼 🎉';
+          return;
+        }
 
-      // 2. 對取得的資料進行排序
-      notes.sort((a, b) => {
-        const priorityA = colorPriority[a.color] || 99;
-        const priorityB = colorPriority[b.color] || 99;
-        return priorityA - priorityB;
-      });
+        // 1. 定義顏色的優先順序權重
+        const colorPriority = {
+          '#ffcdd2': 1, // 🔴 高優先 (紅色)
+          '#ffe0b2': 2, // 🟠 中優先 (橘色)
+          '#fff9c4': 3, // 🟡 普通 (黃色)
+          '#c8e6c9': 4  // 🟢 低優先 (綠色)
+        };
 
-      // 3. 渲染排序後的便利貼
-      notes.forEach(note => {
-        const card = document.createElement('div');
-        card.className = 'note-card';
-        card.style.backgroundColor = note.color || '#fff9c4';
-        
-        card.innerHTML = `
-          <input type="checkbox" onchange="completeNote('${note.id}', this)">
-          <span class="note-content">${note.content}</span>
-        `;
-        listEl.appendChild(card);
-      });
-    } catch (err) {
-      console.error("讀取失敗:", err);
-      document.getElementById('noteList').innerText = '載入失敗，請檢查 API URL 或網路連線。';
+        // 2. 對取得的資料進行排序
+        notes.sort((a, b) => {
+          const priorityA = colorPriority[a.color] || 99;
+          const priorityB = colorPriority[b.color] || 99;
+          return priorityA - priorityB;
+        });
+
+        // 3. 渲染便利貼
+        notes.forEach(note => {
+          const card = document.createElement('div');
+          card.className = 'note-card';
+          card.style.backgroundColor = note.color || '#fff9c4';
+          
+          card.innerHTML = `
+            <input type="checkbox" onchange="completeNote('${note.id}', this)">
+            <span class="note-content">${note.content}</span>
+          `;
+          listEl.appendChild(card);
+        });
+      } catch (err) {
+        console.error("讀取失敗:", err);
+        document.getElementById('noteList').innerText = '載入失敗，請檢查 API URL 或網路連線。';
+      }
     }
-  }
 
-  async function addNote() {
-    const input = document.getElementById('noteInput');
-    const prioritySelect = document.getElementById('prioritySelect');
-    const content = input.value.trim();
-    const color = prioritySelect.value;
+    async function addNote() {
+      const input = document.getElementById('noteInput');
+      const prioritySelect = document.getElementById('prioritySelect');
+      const content = input.value.trim();
+      const color = prioritySelect.value;
 
-    if (!content) return;
+      if (!content) return;
 
-    input.value = '';
-    
-    // 送出新增請求 (包含 color 欄位)
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'add', content: content, color: color })
-    });
+      input.value = '';
+      
+      // 使用 text/plain Content-Type 防止跨域 Simple Request 被瀏覽器阻擋
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'add', content: content, color: color })
+      });
 
+      fetchNotes();
+    }
+
+    async function completeNote(id, checkbox) {
+      const card = checkbox.parentElement;
+      card.style.opacity = '0.3';
+      
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'complete', id: id })
+      });
+      
+      card.remove();
+    }
+
+    // 初始載入便利貼
     fetchNotes();
-  }
-
-  async function completeNote(id, checkbox) {
-    const card = checkbox.parentElement;
-    card.style.opacity = '0.3';
-    
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'complete', id: id })
-    });
-    
-    card.remove();
-  }
-
-  // 初始載入便利貼
-  fetchNotes();
-</script>
+  </script>
 </body>
 </html>
