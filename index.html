@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>便利貼與日曆儀表板</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { display: flex; height: 100vh; font-family: sans-serif; background: #f0f2f5; }
+    
+    /* 左側便利貼區域 */
+    .left-panel { width: 40%; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; }
+    .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+    .input-group input { flex: 1; padding: 10px; font-size: 16px; }
+    .input-group button { padding: 10px 15px; cursor: pointer; }
+    
+    .note-list { display: flex; flex-direction: column; gap: 12px; }
+    .note-card { 
+      background: #fff9c4; 
+      padding: 15px; 
+      border-radius: 8px; 
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1); 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+    }
+    .note-card input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+    .note-content { flex: 1; font-size: 16px; word-break: break-all; }
+
+    /* 右側日曆區域 */
+    .right-panel { width: 60%; height: 100%; }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style>
+</head>
+<body>
+
+  <!-- 左側：便利貼區 -->
+  <div class="left-panel">
+    <h2>待辦便利貼</h2>
+    <br>
+    <div class="input-group">
+      <input type="text" id="noteInput" placeholder="新增便利貼內容...">
+      <button onclick="addNote()">新增</button>
+    </div>
+    <div id="noteList" class="note-list">載入中...</div>
+  </div>
+
+  <!-- 右側：Google 日曆區 -->
+  <div class="right-panel">
+    <!-- 請替換為您的 Google 日曆嵌入 iframe 連結 -->
+   <iframe src="https://calendar.google.com/calendar/embed?src=s1110195%40ttcs.edu.tw&ctz=Asia%2FTaipei" style="border: 0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+  </div>
+
+  <script>
+    // 替換為您的 Apps Script 部署 URL
+    const API_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL";
+
+    async function fetchNotes() {
+      const res = await fetch(API_URL);
+      const notes = await res.json();
+      const listEl = document.getElementById('noteList');
+      listEl.innerHTML = '';
+
+      notes.forEach(note => {
+        const card = document.createElement('div');
+        card.className = 'note-card';
+        card.innerHTML = `
+          <input type="checkbox" onchange="completeNote('${note.id}', this)">
+          <span class="note-content">${note.content}</span>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    async function addNote() {
+      const input = document.getElementById('noteInput');
+      const content = input.value.trim();
+      if (!content) return;
+
+      input.value = '';
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add', content: content })
+      });
+      fetchNotes();
+    }
+
+    async function completeNote(id, checkbox) {
+      // 點擊勾選後，動畫淡出並從畫面移除
+      const card = checkbox.parentElement;
+      card.style.opacity = '0.3';
+      
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'complete', id: id })
+      });
+      
+      card.remove();
+    }
+
+    // 初始載入便利貼
+    fetchNotes();
+  </script>
+</body>
+</html>
