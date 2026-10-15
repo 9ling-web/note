@@ -8,7 +8,7 @@
     body { display: flex; height: 100vh; font-family: sans-serif; background: #f0f2f5; }
     
     /* 左側便利貼區域 */
-    .left-panel { width: 40%; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; }
+    .left-panel { width: 60%; padding: 20px; overflow-y: auto; border-right: 1px solid #ccc; }
     .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
     .input-group input { flex: 1; padding: 10px; font-size: 16px; }
     .input-group button { padding: 10px 15px; cursor: pointer; }
@@ -27,18 +27,24 @@
     .note-content { flex: 1; font-size: 16px; word-break: break-all; }
 
     /* 右側日曆區域 */
-    .right-panel { width: 60%; height: 100%; }
+    .right-panel { width: 40%; height: 100%; }
     iframe { width: 100%; height: 100%; border: none; }
   </style>
 </head>
 <body>
 
-  <!-- 左側：便利貼區 -->
+ <!-- 左側：便利貼區 -->
   <div class="left-panel">
     <h2>待辦便利貼</h2>
     <br>
     <div class="input-group">
       <input type="text" id="noteInput" placeholder="新增便利貼內容...">
+      <select id="prioritySelect">
+        <option value="#ffcdd2">🔴 高優先 (紅色)</option>
+        <option value="#ffe0b2">🟠 中優先 (橘色)</option>
+        <option value="#fff9c4" selected>🟡 普通 (黃色)</option>
+        <option value="#c8e6c9">🟢 低優先 (綠色)</option>
+      </select>
       <button onclick="addNote()">新增</button>
     </div>
     <div id="noteList" class="note-list">載入中...</div>
@@ -52,24 +58,42 @@
 
   <script>
     // 替換為您的 Apps Script 部署 URL
-    const API_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwb_bCBXNs5XemDRLvaHe3ltMD8wNVtPdU_E3td_De6wL6_Ry7yVj2TFLGtaonVETE/exec";
 
     async function fetchNotes() {
-      const res = await fetch(API_URL);
-      const notes = await res.json();
-      const listEl = document.getElementById('noteList');
-      listEl.innerHTML = '';
+  const res = await fetch(API_URL);
+  const notes = await res.json();
+  const listEl = document.getElementById('noteList');
+  listEl.innerHTML = '';
 
-      notes.forEach(note => {
-        const card = document.createElement('div');
-        card.className = 'note-card';
-        card.innerHTML = `
-          <input type="checkbox" onchange="completeNote('${note.id}', this)">
-          <span class="note-content">${note.content}</span>
-        `;
-        listEl.appendChild(card);
-      });
-    }
+  // 1. 定義顏色的優先順序權重（數值越小越靠前）
+  const colorPriority = {
+    '#ffcdd2': 1, // 🔴 高優先 (紅色)
+    '#ffe0b2': 2, // 🟠 中優先 (橘色)
+    '#fff9c4': 3, // 🟡 普通 (黃色)
+    '#c8e6c9': 4  // 🟢 低優先 (綠色)
+  };
+
+  // 2. 對取得的資料進行排序
+  notes.sort((a, b) => {
+    const priorityA = colorPriority[a.color] || 99; // 未知顏色預設排最後
+    const priorityB = colorPriority[b.color] || 99;
+    return priorityA - priorityB;
+  });
+
+  // 3. 渲染排序後的便利貼
+  notes.forEach(note => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    card.style.backgroundColor = note.color;
+    
+    card.innerHTML = `
+      <input type="checkbox" onchange="completeNote('${note.id}', this)">
+      <span class="note-content">${note.content}</span>
+    `;
+    listEl.appendChild(card);
+  });
+}
 
     async function addNote() {
       const input = document.getElementById('noteInput');
